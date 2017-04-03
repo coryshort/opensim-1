@@ -79,9 +79,7 @@ namespace OpenSim.Region.Framework.Scenes
         public bool checkExpire()
         {
             TimeSpan t = DateTime.UtcNow - creationtime;
-            if (t.Seconds > UNDOEXPIRESECONDS)
-                return true;
-            return false;
+            return (t.Seconds > UNDOEXPIRESECONDS);
         }
 
         /// <summary>
@@ -120,8 +118,8 @@ namespace OpenSim.Region.Framework.Scenes
                     return false;
                 if ((change & ObjectChangeType.Rotation) != 0 && data.scale == part.Shape.Scale)
                     return false;
-                return true;
 
+                return true;
             }
             return false;
         }

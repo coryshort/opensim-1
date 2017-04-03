@@ -72,8 +72,8 @@ namespace OpenSim.Region.Framework.Scenes
             double a11 = h1 - h2 - h3 + h4;
             double partialx = x - (int) x;
             double partialz = y - (int) y;
-            double hi = a00 + (a10 * partialx) + (a01 * partialz) + (a11 * partialx * partialz);
-            return hi;
+        //    double hi = a00 + (a10 * partialx) + (a01 * partialz) + (a11 * partialx * partialz);
+            return a00 + (a10 * partialx) + (a01 * partialz) + (a11 * partialx * partialz);
         }
 
         private static double Noise(double x, double y)

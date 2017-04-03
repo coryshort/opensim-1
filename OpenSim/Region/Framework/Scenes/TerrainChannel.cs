@@ -188,8 +188,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     WriteXml(writer);
                 }
-                string output = sw.ToString();
-                return output;
+                return sw.ToString();
             }
         }
 

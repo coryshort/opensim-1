@@ -196,7 +196,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             writer.WriteEndElement();
             writer.WriteStartElement(String.Empty, "OtherParts", String.Empty);
 
-            SceneObjectPart[] parts = sceneObject.Parts;
+/*            SceneObjectPart[] parts = sceneObject.Parts;
             for (int i = 0; i < parts.Length; i++)
             {
                 SceneObjectPart part = parts[i];
@@ -204,6 +204,17 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 {
                     writer.WriteStartElement(String.Empty, "Part", String.Empty);
                     ToXmlFormat(part, writer);
+                    writer.WriteEndElement();
+                }
+            }
+// Either do a real ForEach or do a simple For loop. Lets do simple For loop.
+*/
+            for (int i = 0; i < sceneObject.Parts.Length; i++)
+            {
+                if (sceneObject.Parts[i].UUID != sceneObject.RootPart.UUID)
+                {
+                    writer.WriteStartElement(String.Empty, "Part", String.Empty);
+                    ToXmlFormat(sceneObject.Parts[i], writer);
                     writer.WriteEndElement();
                 }
             }
@@ -1374,7 +1385,6 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 writer.WriteEndElement();
             }
 
-
             writer.WriteEndElement();
         }
 
@@ -1513,12 +1523,12 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             WriteVector(writer, "CameraAtOffset", sop.GetCameraAtOffset());
 
  //           if (sop.Sound != UUID.Zero)  force it till sop crossing does clear it on child prim
-            {
+ //           {
                 WriteUUID(writer, "SoundID", sop.Sound, options);
                 writer.WriteElementString("SoundGain", sop.SoundGain.ToString().ToLower());
                 writer.WriteElementString("SoundFlags", sop.SoundFlags.ToString().ToLower());
                 writer.WriteElementString("SoundRadius", sop.SoundRadius.ToString().ToLower());
-            }
+ //           }
             writer.WriteElementString("SoundQueueing", sop.SoundQueueing.ToString().ToLower());
 
             writer.WriteEndElement();
@@ -1556,12 +1566,20 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         static void WriteBytes(XmlTextWriter writer, string name, byte[] data)
         {
             writer.WriteStartElement(name);
-            byte[] d;
+//            byte[] d;
+//            if (data != null)
+//               d = data;
+//            else
+//                d = Utils.EmptyBytes;
+//            writer.WriteBase64(d, 0, d.Length);
+
             if (data != null)
-                d = data;
+            {
+                writer.WriteBase64(data, 0, data.Length);
+            }
             else
-                d = Utils.EmptyBytes;
-            writer.WriteBase64(d, 0, d.Length);
+                writer.WriteBase64(Utils.EmptyBytes, 0, 0);
+
             writer.WriteEndElement(); // name
 
         }
@@ -1626,8 +1644,8 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                     writer.WriteElementString("PermsMask", item.PermsMask.ToString());
                     writer.WriteElementString("Type", item.Type.ToString());
 
-                    bool ownerChanged = options.ContainsKey("wipe-owners") ? false : item.OwnerChanged;
-                    writer.WriteElementString("OwnerChanged", ownerChanged.ToString().ToLower());
+                    string ownerChanged = options.ContainsKey("wipe-owners") ? "false" : item.OwnerChanged.ToString().ToLower();
+                    writer.WriteElementString("OwnerChanged", ownerChanged);
 
                     writer.WriteEndElement(); // TaskInventoryItem
                 }
@@ -1645,21 +1663,23 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 writer.WriteElementString("ProfileCurve", shp.ProfileCurve.ToString());
 
                 writer.WriteStartElement("TextureEntry");
-                byte[] te;
                 if (shp.TextureEntry != null)
-                    te = shp.TextureEntry;
+                {
+                    byte[] te = shp.TextureEntry;
+                    writer.WriteBase64(te, 0, te.Length);
+                }
                 else
-                    te = Utils.EmptyBytes;
-                writer.WriteBase64(te, 0, te.Length);
+                    writer.WriteBase64(Utils.EmptyBytes, 0, 0);
                 writer.WriteEndElement(); // TextureEntry
 
                 writer.WriteStartElement("ExtraParams");
-                byte[] ep;
                 if (shp.ExtraParams != null)
-                    ep = shp.ExtraParams;
+                {
+                    byte[] ep = shp.ExtraParams;
+                    writer.WriteBase64(ep, 0, ep.Length);
+                }
                 else
-                    ep = Utils.EmptyBytes;
-                writer.WriteBase64(ep, 0, ep.Length);
+                    writer.WriteBase64(Utils.EmptyBytes, 0, 0);
                 writer.WriteEndElement(); // ExtraParams
 
                 writer.WriteElementString("PathBegin", shp.PathBegin.ToString());
@@ -1725,17 +1745,19 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
             reader.ReadStartElement("SceneObjectPart");
 
-            bool errors = ExternalRepresentationUtils.ExecuteReadProcessors(
+            if (ExternalRepresentationUtils.ExecuteReadProcessors(
                 obj,
                 m_SOPXmlProcessors,
                 reader,
-                (o, nodeName, e) => {
+                (o, nodeName, e) =>
+                {
                     m_log.Debug(string.Format("[SceneObjectSerializer]: Error while parsing element {0} in object {1} {2} ",
                         nodeName, ((SceneObjectPart)o).Name, ((SceneObjectPart)o).UUID), e);
-                });
-
-            if (errors)
+                }))
+            {
+                // ExecuteReadProcessors() returns True in case or errors.
                 throw new XmlException(string.Format("Error parsing object {0} {1}", obj.Name, obj.UUID));
+            }
 
             reader.ReadEndElement(); // SceneObjectPart
 

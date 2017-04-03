@@ -5639,7 +5639,14 @@ Environment.Exit(1);
             bool wasUsingPhysics = ((jointProxyObject.Flags & PrimFlags.Physics) != 0);
             if (wasUsingPhysics)
             {
-                jointProxyObject.UpdatePrimFlags(false, false, true, false,false); // FIXME: possible deadlock here; check to make sure all the scene alterations set into motion here won't deadlock
+                // FIXME: possible deadlock here; check to make sure all the scene alterations set into motion here won't deadlock
+                // How is this for a fix? People claim that a finally{} block can not be aborted. Maybe that helps.
+                // Or maybe it will make it worse? 
+                try { }
+                finally
+                {
+                    jointProxyObject.UpdatePrimFlags(false, false, true, false, false);
+                }
             }
         }
 
@@ -6195,19 +6202,18 @@ Environment.Exit(1);
 //                return true;
 
             // also honor estate managers access rights
-            bool isManager = Permissions.IsEstateManager(agentID);
-            if(isManager)
+            // bool isManager = Permissions.IsEstateManager(agentID);
+            if (Permissions.IsEstateManager(agentID))
                 return true;
 
             if (NotCrossing)
             {
                 if (!RegionInfo.EstateSettings.AllowDirectTeleport)
                 {
+                    // If a Telehub exsists, try to go there.
                     SceneObjectGroup telehub;
                     if (RegionInfo.RegionSettings.TelehubObject != UUID.Zero && (telehub = GetSceneObjectGroup  (RegionInfo.RegionSettings.TelehubObject)) != null && checkTeleHub)
                     {
-                        bool banned = true;
-                        bool validTelehub = false;
                         List<SpawnPoint> spawnPoints = RegionInfo.RegionSettings.SpawnPoints();
                         Vector3 spawnPoint;
                         ILandObject land = null;
@@ -6215,18 +6221,22 @@ Environment.Exit(1);
 
                         if(spawnPoints.Count == 0)
                         {
+                            // This telehub seems to have no spawn points.
                             // will this ever happen?
                             // if so use the telehub object position
                             spawnPoint = telehubPosition;
                             land = LandChannel.GetLandObject(spawnPoint.X, spawnPoint.Y);
                             if(land != null && !land.IsEitherBannedOrRestricted(agentID))
                             {
-                                banned = false;
-                                validTelehub = true;
+                                // Found a ValidTelehub that we are allowed to enter!
+                                // We are good to go!
+                                return true;
                             }
                         }
                         else
                         {
+                            bool foundTelehub = false;
+                            // Lets look for a spawn point that allows us to go there.
                             Quaternion telehubRotation = telehub.GroupRotation;
                             foreach (SpawnPoint spawn in spawnPoints)
                             {
@@ -6234,26 +6244,27 @@ Environment.Exit(1);
                                 land = LandChannel.GetLandObject(spawnPoint.X, spawnPoint.Y);
                                 if (land == null)
                                     continue;
-                                validTelehub = true;
+
                                 if (!land.IsEitherBannedOrRestricted(agentID))
                                 {
-                                    banned = false;
-                                    break;
+                                    // Found a ValidTelehub that we are allowed to enter!
+                                    // We are good to go!
+                                    return true;
                                 }
-                            }
-                        }
 
-                        if(validTelehub)
-                        {
-                            if (banned)
+                                foundTelehub = true;
+                            }
+                            
+                            if (foundTelehub)
                             {
+                                // only way to get here is when there is a TeleHub but 
+                                // user is banned or it is restricted.
                                 reason = "No suitable landing point found";
                                 return false;
                             }
-                            else
-                                return true;
                         }
-                       // possible broken telehub, fall into normal check
+
+                        // possible broken telehub, fall into normal check
                     }
                 }
 
@@ -6278,15 +6289,15 @@ Environment.Exit(1);
                     return false;
                 }
 
-                bool banned = land.IsBannedFromLand(agentID);
-                bool restricted = land.IsRestrictedFromLand(agentID);
-
-                if (banned || restricted)
+                if (land.IsBannedFromLand(agentID))
                 {
-                    if (banned)
-                        reason = "You are banned from the parcel";
-                    else
-                        reason = "The parcel is restricted";
+                    reason = "You are banned from the parcel";
+                    return false;
+                }
+
+                if (land.IsRestrictedFromLand(agentID))
+                {
+                    reason = "The parcel is restricted";
                     return false;
                 }
             }

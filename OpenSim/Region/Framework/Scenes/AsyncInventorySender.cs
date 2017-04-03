@@ -140,14 +140,18 @@ namespace OpenSim.Region.Framework.Scenes
                 if (!fh.Client.IsActive)
                     continue;
 
-//                m_log.DebugFormat(
-//                    "[ASYNC INVENTORY SENDER]: Handling request from {0} for {1} on queue", fh.Client.Name, fh.ItemID);
+                //                m_log.DebugFormat(
+                //                    "[ASYNC INVENTORY SENDER]: Handling request from {0} for {1} on queue", fh.Client.Name, fh.ItemID);
 
-                InventoryItemBase item = m_scene.InventoryService.GetItem(fh.Client.AgentId, fh.ItemID);
+                // Some say... that a finally{ } block can not be aborted by another thread.
+                try { }
+                finally 
+                {
+                    InventoryItemBase item = m_scene.InventoryService.GetItem(fh.Client.AgentId, fh.ItemID);
 
-                if (item != null)
-                    fh.Client.SendInventoryItemDetails(item.Owner, item);
-
+                    if (item != null)
+                        fh.Client.SendInventoryItemDetails(item.Owner, item);
+                }
                  // TODO: Possibly log any failure
             }
         }

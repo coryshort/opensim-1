@@ -112,11 +112,10 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                     writer.WriteEndElement(); // CoalescedObject
                 }
 
-                string output = sw.ToString();
-
-//                Console.WriteLine(output);
-
-                return output;
+//                string output = sw.ToString();
+////                Console.WriteLine(output);
+//                return output;
+                return sw.ToString();
             }
         }
 

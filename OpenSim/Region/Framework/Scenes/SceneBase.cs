@@ -472,12 +472,14 @@ namespace OpenSim.Region.Framework.Scenes
         {
             List<Object> l;
             if (ModuleInterfaces.ContainsKey(typeof(M)))
+            {
                 l = ModuleInterfaces[typeof(M)];
+
+                if (l.Contains(mod))
+                    return;
+            }
             else
                 l = new List<Object>();
-
-            if (l.Contains(mod))
-                return;
 
             l.Add(mod);
 

@@ -306,12 +306,7 @@ namespace OpenSim.Framework
         /// <returns></returns>
         public static bool IsZeroVector(Vector3 v)
         {
-            if (v.X == 0 && v.Y == 0 && v.Z == 0)
-            {
-                return true;
-            }
-
-            return false;
+            return (v.X == 0 && v.Y == 0 && v.Z == 0);
         }
 
         # endregion
@@ -543,7 +538,7 @@ namespace OpenSim.Framework
             Uri uri;
             try
             {
-                    uri = new Uri(serverURI);
+                uri = new Uri(serverURI);
             }
             catch
             {
@@ -1096,7 +1091,6 @@ namespace OpenSim.Framework
         public static bool ParseForeignAssetID(string id, out string url, out string assetID)
         {
             url = String.Empty;
-            assetID = String.Empty;
 
             UUID uuid;
             if (UUID.TryParse(id, out uuid))
@@ -1104,6 +1098,8 @@ namespace OpenSim.Framework
                 assetID = uuid.ToString();
                 return false;
             }
+
+            assetID = String.Empty;
 
             if ((id.Length == 0) || (id[0] != 'h' && id[0] != 'H'))
                 return false;
@@ -1151,8 +1147,7 @@ namespace OpenSim.Framework
         /// <returns>safe filename</returns>
         public static string safeFileName(string filename)
         {
-            return Regex.Replace(filename, regexInvalidFileChars, String.Empty);
-            ;
+            return Regex.Replace(filename, regexInvalidFileChars, String.Empty);            
         }
 
         //
@@ -1161,11 +1156,12 @@ namespace OpenSim.Framework
 
         public static string homeDir()
         {
-            string temp;
+            //string temp;
             //            string personal=(Environment.GetFolderPath(Environment.SpecialFolder.Personal));
             //            temp = Path.Combine(personal,".OpenSim");
-            temp = ".";
-            return temp;
+            //temp = ".";
+            //return temp;
+            return ".";
         }
 
         public static string assetsDir()
@@ -1778,8 +1774,7 @@ namespace OpenSim.Framework
         /// </returns>
         public static string GetOperatingSystemInformation()
         {
-            string os = String.Empty;
-
+//            string os = String.Empty;
 //            if (Environment.OSVersion.Platform != PlatformID.Unix)
 //            {
 //                os = Environment.OSVersion.ToString();
@@ -1793,28 +1788,26 @@ namespace OpenSim.Framework
 //            {
 //                os = os.Substring(0, 45);
 //            }
-
-            return os;
+//            return os;
+            return String.Empty;
         }
 
         public static string GetRuntimeInformation()
         {
-            string ru = String.Empty;
-
             if (Environment.OSVersion.Platform == PlatformID.Unix)
-                ru = "Unix/Mono";
+                return "Unix/Mono";
             else
                 if (Environment.OSVersion.Platform == PlatformID.MacOSX)
-                    ru = "OSX/Mono";
+                    return "OSX/Mono";
                 else
                 {
                     if (IsPlatformMono)
-                        ru = "Win/Mono";
+                        return "Win/Mono";
                     else
-                        ru = "Win/.NET";
+                        return "Win/.NET";
                 }
 
-            return ru;
+            return String.Empty;
         }
 
         /// <summary>
@@ -1907,29 +1900,21 @@ namespace OpenSim.Framework
 
             //string s = BitConverter.ToString(hash);
 
-            Guid guid = new Guid(hash);
-
-            return guid;
+            return new Guid(hash);
         }
 
         public static byte ConvertMaturityToAccessLevel(uint maturity)
         {
-            byte retVal = 0;
             switch (maturity)
             {
                 case 0: //PG
-                    retVal = 13;
-                    break;
+                    return 13;
                 case 1: //Mature
-                    retVal = 21;
-                    break;
+                    return 21;
                 case 2: // Adult
-                    retVal = 42;
-                    break;
+                    return 42;
             }
-
-            return retVal;
-
+            return 0;
         }
 
         public static uint ConvertAccessLevelToMaturity(byte maturity)
@@ -1953,12 +1938,11 @@ namespace OpenSim.Framework
             byte[] data = new byte[length];
             stream.Read(data, 0, length);
             string strdata = Util.UTF8.GetString(data);
-            OSDMap args = null;
             OSD buffer;
             buffer = OSDParser.DeserializeJson(strdata);
             if (buffer.Type == OSDType.Map)
             {
-                args = (OSDMap)buffer;
+                OSDMap args = (OSDMap)buffer;
                 return args;
             }
             return null;
@@ -1966,7 +1950,6 @@ namespace OpenSim.Framework
 
         public static OSDMap GetOSDMap(string data)
         {
-            OSDMap args = null;
             try
             {
                 OSD buffer;
@@ -1974,7 +1957,7 @@ namespace OpenSim.Framework
                 buffer = OSDParser.DeserializeJson(data);
                 if (buffer.Type == OSDType.Map)
                 {
-                    args = (OSDMap)buffer;
+                    OSDMap args = (OSDMap)buffer;
                     return args;
                 }
                 else

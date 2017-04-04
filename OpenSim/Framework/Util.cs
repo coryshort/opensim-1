@@ -1807,7 +1807,7 @@ namespace OpenSim.Framework
                         return "Win/.NET";
                 }
 
-            return String.Empty;
+            // return String.Empty;
         }
 
         /// <summary>

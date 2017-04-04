@@ -75,14 +75,14 @@ namespace OpenSim.Framework.Console
 
         public string CmdPrompt(string p)
         {
-            return ReadLine(String.Format("{0}: ", p), false, true);
+            return ReadLine( p+": ", false, true);
         }
 
         public string CmdPrompt(string p, string def)
         {
-            string ret = ReadLine(String.Format("{0} [{1}]: ", p, def), false, true);
+            string ret = ReadLine( p+" ["+def+"]: ", false, true);
             if (ret == String.Empty)
-                ret = def;
+                return def;
 
             return ret;
         }
@@ -166,7 +166,7 @@ namespace OpenSim.Framework.Console
         // (Done with no echo and suitable for passwords)
         public string PasswdPrompt(string p)
         {
-            return ReadLine(String.Format("{0}: ", p), false, false);
+            return ReadLine( p+": ", false, false);
         }
 
         public virtual string ReadLine(string p, bool isCommand, bool e)

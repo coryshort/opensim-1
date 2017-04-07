@@ -246,53 +246,31 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Asset
 
         public AssetMetadata GetMetadata(string id)
         {
-            AssetBase asset = null;
-
-            if (m_Cache != null)
-            {
-                if (m_Cache != null)
-                    m_Cache.Get(id);
-
-                if (asset != null)
-                    return asset.Metadata;
-            }
-
-            AssetMetadata metadata;
-
+            AssetBase asset = GetCached(id);
+            if (asset != null)
+               return asset.Metadata;
+ 
             if (IsHG(id))
-                metadata = m_HGService.GetMetadata(id);
+                return m_HGService.GetMetadata(id);
             else
-                metadata = m_GridService.GetMetadata(id);
-
-            return metadata;
+                return m_GridService.GetMetadata(id);
         }
 
         public byte[] GetData(string id)
         {
-            AssetBase asset = null;
-
-            if (m_Cache != null)
-            {
-                if (m_Cache != null)
-                    m_Cache.Get(id);
-
-                if (asset != null)
-                    return asset.Data;
-            }
-
+            AssetBase asset = GetCached(id);
+            if (asset != null)
+                return asset.Data;
+            
             if (IsHG(id))
                 return m_HGService.GetData(id);
             else
                 return m_GridService.GetData(id);
-
         }
 
         public bool Get(string id, Object sender, AssetRetrieved handler)
         {
-            AssetBase asset = null;
-
-            if (m_Cache != null)
-                asset = m_Cache.Get(id);
+            AssetBase asset = GetCached(id);
 
             if (asset != null)
             {
@@ -379,10 +357,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Asset
 
         public bool UpdateContent(string id, byte[] data)
         {
-            AssetBase asset = null;
-
-            if (m_Cache != null)
-                asset = m_Cache.Get(id);
+            AssetBase asset = GetCached(id);
 
             if (asset != null)
             {

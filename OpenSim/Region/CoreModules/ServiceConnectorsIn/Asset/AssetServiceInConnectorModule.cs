@@ -95,7 +95,6 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsIn.Asset
 
                 m_log.Info("[HGAssetService]: Starting...");
 
-
                 Object[] args = new Object[] { m_Config, MainServer.Instance, "HGAssetService" };
 
                 ServerUtils.LoadPlugin<IServiceConnector>("OpenSim.Server.Handlers.dll:AssetServiceConnector", args);

@@ -1124,10 +1124,12 @@ namespace OpenSim.Framework
                 assetID = assetUri.LocalPath.Trim(new char[] { '/' });
             }
 
-            if (!UUID.TryParse(assetID, out uuid))
-                return false;
+//            if (!UUID.TryParse(assetID, out uuid))
+//                return false;
 
-            return true;
+//            return true;
+
+            return UUID.TryParse(assetID, out uuid);
         }
 
         /// <summary>
@@ -1850,8 +1852,9 @@ namespace OpenSim.Framework
             int charCount = utf8Decode.GetCharCount(todecode_byte, 0, todecode_byte.Length);
             char[] decoded_char = new char[charCount];
             utf8Decode.GetChars(todecode_byte, 0, todecode_byte.Length, decoded_char, 0);
-            string result = new String(decoded_char);
-            return result;
+            //string result = new String(decoded_char);
+            //return result;
+            return new String(decoded_char);
         }
 
         public static void BinaryToASCII(char[] chars)
@@ -2223,13 +2226,14 @@ namespace OpenSim.Framework
             StringBuilder sb = new StringBuilder();
 
             int i = 0;
-
             foreach (string key in ht.Keys)
             {
-                sb.AppendFormat("{0}:{1}", key, ht[key]);
+                // sb.AppendFormat("{0}:{1}", key, ht[key]);
+                sb.Append(key + ":" + ht[key]);
 
                 if (++i < ht.Count)
-                    sb.AppendFormat(", ");
+                  // sb.AppendFormat(", ");
+                    sb.Append(", ");
             }
 
             return sb.ToString();
@@ -2331,7 +2335,7 @@ namespace OpenSim.Framework
 
         public static int FireAndForgetCount()
         {
-            const int MAX_SYSTEM_THREADS = 200;
+            const int MAX_SYSTEM_THREADS = 256; // 200; why 200, why not lets say... 256?
 
             switch (FireAndForgetMethod)
             {
@@ -2623,8 +2627,9 @@ namespace OpenSim.Framework
                         ThreadPool.QueueUserWorkItem(realCallback, obj);
                         break;
                     case FireAndForgetMethod.BeginInvoke:
-                        FireAndForgetWrapper wrapper = FireAndForgetWrapper.Instance;
-                        wrapper.FireAndForget(realCallback, obj);
+                        // FireAndForgetWrapper wrapper = FireAndForgetWrapper.Instance;
+                        // wrapper.FireAndForget(realCallback, obj);
+                        (FireAndForgetWrapper.Instance).FireAndForget(realCallback, obj);
                         break;
                     case FireAndForgetMethod.SmartThreadPool:
                         if (m_ThreadPool == null)
@@ -2632,8 +2637,10 @@ namespace OpenSim.Framework
                         threadInfo.WorkItem = m_ThreadPool.QueueWorkItem((cb, o) => cb(o), realCallback, obj);
                         break;
                     case FireAndForgetMethod.Thread:
-                        Thread thread = new Thread(delegate(object o) { realCallback(o); });
-                        thread.Start(obj);
+                        //Thread thread = new Thread(delegate(object o) { realCallback(o); });
+                        //thread.Start(obj);
+                        // This may look scary but works just fine:
+                        (new Thread(delegate (object o) { realCallback(o); })).Start(obj);
                         break;
                     default:
                         throw new NotImplementedException();

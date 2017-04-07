@@ -127,7 +127,6 @@ namespace OpenSim.Framework
                     {
                         return false;
                     }
-
                     return true;
                 }
             }

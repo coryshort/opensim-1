@@ -147,8 +147,8 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
             else
                 asset1.Data = asset.Data;
 
-            string id = m_scene.AssetService.Store(asset1);
-            if (String.IsNullOrEmpty(id))
+            // string id = m_scene.AssetService.Store(asset1);
+            if (String.IsNullOrEmpty(m_scene.AssetService.Store(asset1)))
             {
                 m_log.DebugFormat("[HG ASSET MAPPER]: Asset server {0} did not accept {1}", url, asset.ID);
                 return false;

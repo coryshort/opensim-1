@@ -247,31 +247,59 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Asset
         public AssetMetadata GetMetadata(string id)
         {
             AssetBase asset = GetCached(id);
-            if (asset != null)
-               return asset.Metadata;
- 
-            if (IsHG(id))
-                return m_HGService.GetMetadata(id);
-            else
-                return m_GridService.GetMetadata(id);
-        }
+            if (asset == null)
+            {
+                if (IsHG(id))
+                { 
+                    // Lets get it and try cache it.
+                    asset = m_HGService.Get(id);
+                    if (asset != null)
+                    {
+                        // Now store it locally, if allowed
+                        if (m_AssetPerms.AllowedImport(asset.Type))
+                            m_GridService.Store(asset);
+                        else
+                            return null;
 
+                        return asset.Metadata;
+                    }
+                    return null;
+                }
+                else
+                    return m_GridService.GetMetadata(id);
+            }
+            return asset.Metadata;
+        }
+ 
         public byte[] GetData(string id)
         {
             AssetBase asset = GetCached(id);
-            if (asset != null)
-                return asset.Data;
-            
-            if (IsHG(id))
-                return m_HGService.GetData(id);
-            else
-                return m_GridService.GetData(id);
+            if (asset == null)
+            {
+                if (IsHG(id))
+                {
+                    asset = m_HGService.Get(id);
+                    if (asset != null)
+                    {
+                        // Now store it locally, if allowed
+                        if (m_AssetPerms.AllowedImport(asset.Type))
+                            m_GridService.Store(asset);
+                        else
+                            return null;
+
+                        return asset.Data;
+                    }
+                    return null;
+                }
+                else
+                    return m_GridService.GetData(id);
+            }
+            return asset.Data;
         }
 
         public bool Get(string id, Object sender, AssetRetrieved handler)
         {
             AssetBase asset = GetCached(id);
-
             if (asset != null)
             {
                 Util.FireAndForget(delegate { handler(id, sender, asset); }, null, "HGAssetBroker.GotFromCache");
@@ -358,7 +386,6 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Asset
         public bool UpdateContent(string id, byte[] data)
         {
             AssetBase asset = GetCached(id);
-
             if (asset != null)
             {
                 asset.Data = data;

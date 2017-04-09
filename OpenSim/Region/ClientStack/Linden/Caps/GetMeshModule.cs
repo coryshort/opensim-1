@@ -346,10 +346,9 @@ namespace OpenSim.Region.ClientStack.Linden
 
         public void RegisterCaps(UUID agentID, Caps caps)
         {
-//            UUID capID = UUID.Random();
             if (m_URL == "localhost")
             {
-                string capUrl = "/CAPS/" + UUID.Random() + "/";
+                string capUrl = "/CAPS/" + UUID.Random().ToString() + "/";
 
                 // Register this as a poll service
                 PollServiceMeshEventArgs args = new PollServiceMeshEventArgs(capUrl, agentID, m_scene);
@@ -357,17 +356,21 @@ namespace OpenSim.Region.ClientStack.Linden
                 args.Type = PollServiceEventArgs.EventType.Mesh;
                 MainServer.Instance.AddPollServiceHTTPHandler(capUrl, args);
 
-                string hostName = m_scene.RegionInfo.ExternalHostName;
-                uint port = (MainServer.Instance == null) ? 0 : MainServer.Instance.Port;
-                string protocol = "http";
-
                 if (MainServer.Instance.UseSSL)
                 {
-                    hostName = MainServer.Instance.SSLCommonName;
-                    port = MainServer.Instance.SSLPort;
-                    protocol = "https";
+                    caps.RegisterHandler("GetMesh", "https://" + 
+                                          MainServer.Instance.SSLCommonName + ":" +
+                                          MainServer.Instance.SSLPort.ToString() +
+                                          capUrl);
                 }
-                caps.RegisterHandler("GetMesh", String.Format("{0}://{1}:{2}{3}", protocol, hostName, port, capUrl));
+                else
+                {
+                    caps.RegisterHandler("GetMesh", "http://" + 
+                                          m_scene.RegionInfo.ExternalHostName + ":" +
+                                          MainServer.Instance.Port.ToString() +
+                                          capUrl);
+                }
+
                 m_pollservices[agentID] = args;
                 m_capsDict[agentID] = capUrl;
             }

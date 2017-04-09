@@ -25,6 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 using System;
 using System.Collections.Generic;
 
@@ -47,6 +48,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             this.m_capacity = capacity;
             m_items = new uint[capacity];
             m_hashSet = new HashSet<uint>();
+            m_next = 0;
         }
 
         public bool TryEnqueue(uint ack)
@@ -62,12 +64,11 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                         m_hashSet.Remove(m_items[m_first]);
                         m_first = (m_first + 1) % m_capacity;
                     }
-
                     return true;
                 }
             }
-
             return false;
         }
     }
 }
+

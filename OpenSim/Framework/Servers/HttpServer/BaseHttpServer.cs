@@ -1239,12 +1239,7 @@ namespace OpenSim.Framework.Servers.HttpServer
             }
 
             response.KeepAlive = true;
-            string responseData = string.Empty;
-
-            responseData = jsonRpcResponse.Serialize();
-
-            byte[] buffer = Encoding.UTF8.GetBytes(responseData);
-            return buffer;
+            return Encoding.UTF8.GetBytes( jsonRpcResponse.Serialize() );
         }
 
         private byte[] HandleLLSDRequests(OSHttpRequest request, OSHttpResponse response)
@@ -1714,7 +1709,7 @@ namespace OpenSim.Framework.Servers.HttpServer
             byte[] responseData = null;
             string contentType;
 
-            if (responsedata == null)
+            if (responsedata == null) 
             {
                 responsecode = 500;
                 responseString = "No response could be obtained";
@@ -1727,13 +1722,43 @@ namespace OpenSim.Framework.Servers.HttpServer
                 {
                     //m_log.Info("[BASE HTTP SERVER]: Doing HTTP Grunt work with response");
                     responsecode = (int)responsedata["int_response_code"];
+
                     if (responsedata["bin_response_data"] != null)
                         responseData = (byte[])responsedata["bin_response_data"];
                     else
                         responseString = (string)responsedata["str_response_string"];
+
                     contentType = (string)responsedata["content_type"];
+
                     if (responseString == null)
                         responseString = String.Empty;
+
+                    // Moved these checks to the else{} and into the try{} 
+                    // since if responsedata was null
+                    // a new HashTable wont contain these keys anyway and 
+                    // contenttype would be set to text/plain.
+
+                    if (responsedata.ContainsKey("error_status_text"))
+                    {
+                        response.StatusDescription = (string)responsedata["error_status_text"];
+                    }
+
+                    if (responsedata.ContainsKey("http_protocol_version"))
+                    {
+                        response.ProtocolVersion = (string)responsedata["http_protocol_version"];
+                    }
+
+                    // Cross-Origin Resource Sharing with simple requests
+                    if (responsedata.ContainsKey("access_control_allow_origin"))
+                        response.AddHeader("Access-Control-Allow-Origin", (string)responsedata["access_control_allow_origin"]);
+
+                    // Even though only one other part of the entire code uses HTTPHandlers, we shouldn't expect this
+                    // and should check for NullReferenceExceptions.
+                    // 
+                    if (string.IsNullOrEmpty(contentType))
+                    {
+                        contentType = "text/html";
+                    }
                 }
                 catch
                 {
@@ -1743,40 +1768,19 @@ namespace OpenSim.Framework.Servers.HttpServer
                     responsedata = new Hashtable();
                 }
             }
+            /*
+                        if (responsedata.ContainsKey("keepalive"))
+                        {
+                            bool keepalive = (bool)responsedata["keepalive"];
+                            response.KeepAlive = keepalive;
+                        }
 
-            if (responsedata.ContainsKey("error_status_text"))
-            {
-                response.StatusDescription = (string)responsedata["error_status_text"];
-            }
-            if (responsedata.ContainsKey("http_protocol_version"))
-            {
-                response.ProtocolVersion = (string)responsedata["http_protocol_version"];
-            }
-/*
-            if (responsedata.ContainsKey("keepalive"))
-            {
-                bool keepalive = (bool)responsedata["keepalive"];
-                response.KeepAlive = keepalive;
-            }
-
-            if (responsedata.ContainsKey("reusecontext"))
-                response.ReuseContext = (bool) responsedata["reusecontext"];
-*/
+                        if (responsedata.ContainsKey("reusecontext"))
+                            response.ReuseContext = (bool) responsedata["reusecontext"];
+            */
             // disable this things
             response.KeepAlive = false;
             response.ReuseContext = false;
-
-            // Cross-Origin Resource Sharing with simple requests
-            if (responsedata.ContainsKey("access_control_allow_origin"))
-                response.AddHeader("Access-Control-Allow-Origin", (string)responsedata["access_control_allow_origin"]);
-
-            //Even though only one other part of the entire code uses HTTPHandlers, we shouldn't expect this
-            //and should check for NullReferenceExceptions
-
-            if (string.IsNullOrEmpty(contentType))
-            {
-                contentType = "text/html";
-            }
 
             // The client ignores anything but 200 here for web login, so ensure that this is 200 for that
 
@@ -1852,7 +1856,6 @@ namespace OpenSim.Framework.Servers.HttpServer
             response.SendChunked = false;
             response.ContentLength64 = buffer.Length;
             response.ContentEncoding = Encoding.UTF8;
-
 
             return buffer;
         }

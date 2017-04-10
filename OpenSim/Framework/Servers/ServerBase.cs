@@ -72,6 +72,8 @@ namespace OpenSim.Framework.Servers
 
         public ServerBase()
         {
+            m_consoleAppender = null;
+            m_logFileAppender = null;
             m_startuptime = DateTime.Now;
             m_version = VersionInfo.Version;
             EnhanceVersionInformation();
@@ -146,15 +148,20 @@ namespace OpenSim.Framework.Servers
             ILoggerRepository repository = LogManager.GetRepository();
             IAppender[] appenders = repository.GetAppenders();
 
-            foreach (IAppender appender in appenders)
+            // foreach (IAppender appender in appenders)
+            for(int i=0; i<appenders.Length; i++)
             {
-                if (appender.Name == "Console")
+                if (appenders[i].Name == "Console")
                 {
-                    m_consoleAppender = (OpenSimAppender)appender;
+                    m_consoleAppender = (OpenSimAppender)appenders[i];
+                    if (m_logFileAppender != null)
+                        break;
                 }
-                else if (appender.Name == "LogFileAppender")
+                else if (appenders[i].Name == "LogFileAppender")
                 {
-                    m_logFileAppender = (FileAppender)appender;
+                    m_logFileAppender = (FileAppender)appenders[i];
+                    if (m_consoleAppender != null)
+                        break;
                 }
             }
 

@@ -315,9 +315,9 @@ namespace OpenSim.Framework
         private int GetIndex(T value)
         {
             EqualityComparer<T> comparer = EqualityComparer<T>.Default;
-            int index;
+            //int index;
 
-            for (index = 0; index < this.size; ++index)
+            for (int index = 0; index < this.size; ++index)
             {
                 if (comparer.Equals(this.items[index].value, value))
                     return index;

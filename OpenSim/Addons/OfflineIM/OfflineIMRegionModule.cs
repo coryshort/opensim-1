@@ -57,13 +57,17 @@ namespace OpenSim.OfflineIM
             IConfig cnf = config.Configs["Messaging"];
             if (cnf == null)
                 return;
-            if (cnf != null && cnf.GetString("OfflineMessageModule", string.Empty) != Name)
+
+            // if (cnf != null && cnf.GetString("OfflineMessageModule", string.Empty) != Name)
+            // we just checked if cnf was null...
+            if (cnf.GetString("OfflineMessageModule", string.Empty) != Name)
                 return;
 
             m_Enabled = true;
 
-            string serviceLocation = cnf.GetString("OfflineMessageURL", string.Empty);
-            if (serviceLocation == string.Empty)
+            //string serviceLocation = cnf.GetString("OfflineMessageURL", string.Empty);
+            //if (serviceLocation == string.Empty)
+            if (cnf.GetString("OfflineMessageURL", string.Empty) == string.Empty)
                 m_OfflineIMService = new OfflineIMService(config);
             else
                 m_OfflineIMService = new OfflineIMServiceRemoteConnector(config);

@@ -359,12 +359,13 @@ namespace OpenSim.ApplicationPlugins.RemoteController
                     notice = false;
                 }
 
-                List<Scene> restartList;
+                //List<Scene> restartList;
 
-                if (restartAll)
-                    restartList = m_application.SceneManager.Scenes;
-                else
-                    restartList = new List<Scene>() { rebootedScene };
+                //if (restartAll)
+                //    restartList = m_application.SceneManager.Scenes;
+                //else
+                //    restartList = new List<Scene>() { rebootedScene };
+                //// restartList is never used!
 
                 foreach (Scene s in m_application.SceneManager.Scenes)
                 {

@@ -160,10 +160,11 @@ namespace OpenSim.OfflineIM
                          ServerUtils.BuildQueryString(sendData),
                          m_Auth);
 
-            Dictionary<string, object> replyData = ServerUtils.ParseXmlResponse(
-                    reply);
+            //Dictionary<string, object> replyData = ServerUtils.ParseXmlResponse(
+            //        reply);
 
-            return replyData;
+            //return replyData;
+            return ServerUtils.ParseXmlResponse(reply);
         }
         #endregion
 

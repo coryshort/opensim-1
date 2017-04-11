@@ -301,7 +301,8 @@ namespace OpenSim.Region.ScriptEngine.XEngine
 
         public void land_collision_start(uint localID, ColliderArgs col)
         {
-            List<DetectParams> det = new List<DetectParams>();
+            // Giving the List and initial capacity prevents needless resizing on Add().
+            List<DetectParams> det = new List<DetectParams>(col.Colliders.Count);
 
             foreach (DetectedObject detobj in col.Colliders)
             {
@@ -318,7 +319,8 @@ namespace OpenSim.Region.ScriptEngine.XEngine
 
         public void land_collision(uint localID, ColliderArgs col)
         {
-            List<DetectParams> det = new List<DetectParams>();
+            // Giving the List and initial capacity prevents needless resizing on Add().
+            List<DetectParams> det = new List<DetectParams>(col.Colliders.Count);
 
             foreach (DetectedObject detobj in col.Colliders)
             {
@@ -334,7 +336,8 @@ namespace OpenSim.Region.ScriptEngine.XEngine
 
         public void land_collision_end(uint localID, ColliderArgs col)
         {
-            List<DetectParams> det = new List<DetectParams>();
+            // Giving the List and initial capacity prevents needless resizing on Add().
+            List<DetectParams> det = new List<DetectParams>(col.Colliders.Count);
 
             foreach (DetectedObject detobj in col.Colliders)
             {
@@ -346,7 +349,7 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                         new Object[] { new LSL_Types.Vector3(d.Position) },
                         det.ToArray()));
             }
-         }
+        }
 
         // timer: not handled here
         // listen: not handled here
@@ -417,8 +420,7 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             SceneObjectGroup grp = myScriptEngine.World.GetSceneObjectGroup(localID);
             if(grp == null)
                 return;
-
-
+            
             foreach(SceneObjectPart part in grp.Parts)
             {
                 myScriptEngine.PostObjectEvent(part.LocalId, new EventParams(

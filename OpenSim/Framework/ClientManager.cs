@@ -49,6 +49,7 @@ namespace OpenSim.Framework
         /// <summary>An immutable collection of <seealso cref="IClientAPI"/>
         /// references</summary>
         private IClientAPI[] m_array;
+        private int m_size;
         /// <summary>Synchronization object for writing to the collections</summary>
         private object m_syncRoot = new object();
 
@@ -63,6 +64,7 @@ namespace OpenSim.Framework
             m_dict1 = new Dictionary<UUID, IClientAPI>();
             m_dict2 = new Dictionary<IPEndPoint, IClientAPI>();
             m_array = new IClientAPI[0];
+            m_size = 0;
         }
 
         /// <summary>
@@ -86,8 +88,13 @@ namespace OpenSim.Framework
                     m_dict2[value.RemoteEndPoint] = value;
 
                     // First make the array bigger and then add the value to end of the array. 
-                    Array.Resize(ref m_array, m_array.Length + 1);
-                    m_array[m_array.Length - 1] = value;
+                    if (m_size == m_array.Length)
+                    {                       
+                        // lets grow the array in small chunks of 4 (seems a reasonable number)
+                        Array.Resize(ref m_array, m_array.Length + 4);                       
+                    };
+                    m_array[m_size] = value;
+                    m_size++;
                 }
                 catch (Exception)
                 {
@@ -112,16 +119,27 @@ namespace OpenSim.Framework
                 {
                     try
                     {
-                        m_dict1.Remove(key);
                         m_dict2.Remove(value.RemoteEndPoint);
+                        m_dict1.Remove(key);
 
                         // Value has to exist in the array since it was added to it earlier
                         // and we found it in m_dict1.
                         // So we can safely do this:
-                        // Replace the value with the last element in the array.
-                        m_array[Array.IndexOf(m_array, value)] = m_array[m_array.Length - 1];
-                        // Now shrink the array, which removes the last element.
-                        Array.Resize(ref m_array, m_array.Length - 1);
+
+                        // Find and replace the value with the last element in the array.
+                        // No need to look at the last element itself because if we loop that
+                        // far the element would have to be the one we are looking for.
+                        m_size--;
+                        for (int i = 0; i < m_size; i++)
+                        {
+                            if (m_array[i] == value)
+                            {
+                                m_array[i] = m_array[m_size];
+                                break;
+                            }
+                        }
+                        // Unset the reference of the unused (previously) last element.
+                        m_array[m_size] = null;
                     }
                     catch (Exception)
                     {
@@ -143,6 +161,7 @@ namespace OpenSim.Framework
                 m_dict1.Clear();
                 m_dict2.Clear();
                 m_array = new IClientAPI[0];
+                m_size = 0;
             }
         }
 
@@ -206,7 +225,8 @@ namespace OpenSim.Framework
         public void ForEach(Action<IClientAPI> action)
         {
             IClientAPI[] localArray = m_array;
-            Parallel.For(0, localArray.Length,
+            int length = m_size;
+            Parallel.For(0, length,
                 delegate(int i)
                 { action(localArray[i]); }
             );
@@ -220,7 +240,8 @@ namespace OpenSim.Framework
         public void ForEachSync(Action<IClientAPI> action)
         {
             IClientAPI[] localArray = m_array;
-            for (int i = 0; i < localArray.Length; i++)
+            int length = m_size;
+            for (int i = 0; i < length; i++)
                 action(localArray[i]);
         }
     }

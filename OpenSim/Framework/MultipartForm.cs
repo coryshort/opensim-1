@@ -82,6 +82,8 @@ namespace OpenSim.Framework
 
             using (MemoryStream formDataStream = new MemoryStream())
             {
+                string prefix = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"";
+
                 foreach (var param in postParameters)
                 {
                     if (param is File)
@@ -89,11 +91,16 @@ namespace OpenSim.Framework
                         File file = (File)param;
 
                         // Add just the first part of this param, since we will write the file data directly to the Stream
-                        string header = string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"; filename=\"{2}\";\r\nContent-Type: {3}\r\n\r\n",
-                            boundary,
-                            file.Name,
-                            !String.IsNullOrEmpty(file.Filename) ? file.Filename : "tempfile",
-                            file.ContentType);
+                        //string header = string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"; filename=\"{2}\";\r\nContent-Type: {3}\r\n\r\n",
+                        //    boundary,
+                        //    file.Name,
+                        //    !String.IsNullOrEmpty(file.Filename) ? file.Filename : "tempfile",
+                        //    file.ContentType);
+
+                        string header = prefix + file.Name +
+                            "\"; filename=\"" +
+                            (!String.IsNullOrEmpty(file.Filename) ? file.Filename : "tempfile") +
+                            "\";\r\nContent-Type: " + file.ContentType + "\r\n\r\n";
 
                         formDataStream.Write(Encoding.UTF8.GetBytes(header), 0, header.Length);
                         formDataStream.Write(file.Data, 0, file.Data.Length);
@@ -102,10 +109,13 @@ namespace OpenSim.Framework
                     {
                         Parameter parameter = (Parameter)param;
 
-                        string postData = string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}\r\n",
-                            boundary,
-                            parameter.Name,
-                            parameter.Value);
+                        //string postData = string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}\r\n",
+                        //    boundary,
+                        //    parameter.Name,
+                        //    parameter.Value);
+
+                        string postData = prefix + parameter.Name + "\"\r\n\r\n" + parameter.Value + "\r\n";                            
+
                         formDataStream.Write(Encoding.UTF8.GetBytes(postData), 0, postData.Length);
                     }
                 }
@@ -130,15 +140,13 @@ namespace OpenSim.Framework
         private static string Boundary()
         {
             Random rnd = new Random();
-            string formDataBoundary = String.Empty;
+            
+            string formDataBoundary = rnd.Next().ToString();
 
             while (formDataBoundary.Length < 15)
-                formDataBoundary = formDataBoundary + rnd.Next();
-
-            formDataBoundary = formDataBoundary.Substring(0, 15);
-            formDataBoundary = "-----------------------------" + formDataBoundary;
-
-            return formDataBoundary;
+                  formDataBoundary = formDataBoundary + rnd.Next();
+            
+            return "-----------------------------" + formDataBoundary.Substring(0, 15);
         }
     }
 }

@@ -53,15 +53,16 @@ namespace OpenSim.Framework
         /// </summary>
         private static string PermissionsToString(uint perms)
         {
-            string str = "";
-            if ((perms & (int)PermissionMask.Modify) != 0)
-                str += "M";
+            string str = ((perms & (int)PermissionMask.Modify) != 0) ? "M" : "";
+
             if ((perms & (int)PermissionMask.Copy) != 0)
                 str += "C";
             if ((perms & (int)PermissionMask.Transfer) != 0)
                 str += "T";
+
             if (str == "")
-                str = ".";
+                return ".";
+
             return str;
         }
     }

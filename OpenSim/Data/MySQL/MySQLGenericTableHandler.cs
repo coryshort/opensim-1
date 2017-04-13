@@ -115,7 +115,14 @@ namespace OpenSim.Data.MySQL
 
         public virtual T[] Get(string field, string key)
         {
-            return Get(new string[] { field }, new string[] { key });
+            using (MySqlCommand cmd = new MySqlCommand())
+            {
+                cmd.Parameters.AddWithValue(field, key);
+                cmd.CommandText = "select * from " + m_Realm +
+                                  " where `" + field + "` = ?" + field;
+
+                return DoQuery(cmd);
+            }
         }
 
         public virtual T[] Get(string[] fields, string[] keys)
@@ -204,10 +211,8 @@ namespace OpenSim.Data.MySQL
                                 if (data[m_ColumnNames[i]] == null)
                                     data[m_ColumnNames[i]] = String.Empty;
                             }
-
                             m_DataField.SetValue(row, data);
                         }
-
                         result.Add(row);
                     }
                     return result.ToArray();
@@ -275,7 +280,13 @@ namespace OpenSim.Data.MySQL
 
         public virtual bool Delete(string field, string key)
         {
-            return Delete(new string[] { field }, new string[] { key });
+            using (MySqlCommand cmd = new MySqlCommand())
+            {
+                cmd.Parameters.AddWithValue(field, key);
+                cmd.CommandText = "delete from " + m_Realm + " where `" + field + "` = ?" + field;
+
+                return (ExecuteNonQuery(cmd) > 0);
+            }
         }
 
         public virtual bool Delete(string[] fields, string[] keys)
@@ -305,7 +316,15 @@ namespace OpenSim.Data.MySQL
 
         public long GetCount(string field, string key)
         {
-            return GetCount(new string[] { field }, new string[] { key });
+            using (MySqlCommand cmd = new MySqlCommand())
+            {
+                cmd.Parameters.AddWithValue(field, key);
+                cmd.CommandText = "select count(*) from " + m_Realm + " where `" + field + "` = ?" + field;
+
+                Object result = DoQueryScalar(cmd);
+
+                return Convert.ToInt64(result);
+            }
         }
 
         public long GetCount(string[] fields, string[] keys)

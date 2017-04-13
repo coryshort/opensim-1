@@ -85,6 +85,9 @@ namespace OpenSim.Framework
                 if (subnetBytes.Length != destBytes.Length || subnetBytes.Length != localBytes.Length)
                     return null;
 
+                if (subnet.Key.AddressFamily != AddressFamily.InterNetwork)
+                    continue;
+
                 bool valid = true;
 
                 for (int i = 0; i < subnetBytes.Length; i++)
@@ -96,8 +99,9 @@ namespace OpenSim.Framework
                     }
                 }
 
-                if (subnet.Key.AddressFamily != AddressFamily.InterNetwork)
-                    valid = false;
+                // Lets move this to before the for loop and make it a continue:
+                //if (subnet.Key.AddressFamily != AddressFamily.InterNetwork)
+                //    valid = false;
 
                 if (valid)
                 {
@@ -149,6 +153,9 @@ namespace OpenSim.Framework
                 if (subnetBytes.Length != destBytes.Length || subnetBytes.Length != localBytes.Length)
                     return null;
 
+                if (subnet.Key.AddressFamily != AddressFamily.InterNetwork)
+                    continue;
+
                 bool valid = true;
 
                 for (int i=0;i<subnetBytes.Length;i++)
@@ -160,8 +167,9 @@ namespace OpenSim.Framework
                     }
                 }
 
-                if (subnet.Key.AddressFamily != AddressFamily.InterNetwork)
-                    valid = false;
+                // Lets move this to before the for loop and make it a continue:
+                //if (subnet.Key.AddressFamily != AddressFamily.InterNetwork)
+                //    valid = false;
 
                 if (valid)
                 {
@@ -217,22 +225,23 @@ namespace OpenSim.Framework
 
             // Otherwise use the old algorithm
             IPAddress ia;
-
             if (IPAddress.TryParse(defaultHostname, out ia))
                 return ia;
 
-            ia = null;
+            // ia = null;
 
             foreach (IPAddress Adr in Dns.GetHostAddresses(defaultHostname))
             {
                 if (Adr.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    ia = Adr;
-                    break;
+                    //ia = Adr;
+                    //break;
+                    return Adr;
                 }
             }
 
-            return ia;
+            // return ia;
+            return null;
         }
 
         public static string GetHostFor(IPAddress user, string defaultHostname)

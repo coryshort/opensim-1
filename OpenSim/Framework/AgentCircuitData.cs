@@ -230,6 +230,7 @@ namespace OpenSim.Framework
 
             // Old, bad  way. Keeping it fow now for backwards compatibility
             // OBSOLETE -- soon to be deleted
+            /*
             if (ServiceURLs != null && ServiceURLs.Count > 0)
             {
                 OSDArray urls = new OSDArray(ServiceURLs.Count * 2);
@@ -241,16 +242,34 @@ namespace OpenSim.Framework
                 }
                 args["service_urls"] = urls;
             }
+            */
 
-            // again, this time the right way
+            // again, this time the right way, for now including the old Way
+            // Old way will be obsolete soon and can then be removed.
             if (ServiceURLs != null && ServiceURLs.Count > 0)
             {
+                OSDArray urls_oldWay = new OSDArray(ServiceURLs.Count * 2);
+
                 OSDMap urls = new OSDMap();
                 foreach (KeyValuePair<string, object> kvp in ServiceURLs)
                 {
+                    urls_oldWay.Add(OSD.FromString(kvp.Key));
+
                     //System.Console.WriteLine("XXX " + kvp.Key + "=" + kvp.Value);
-                    urls[kvp.Key] = OSD.FromString((kvp.Value == null) ? string.Empty : kvp.Value.ToString());
+                    if (kvp.Value == null)
+                    {
+                        urls_oldWay.Add(OSD.FromString(string.Empty));
+
+                        urls[kvp.Key] = OSD.FromString(string.Empty);
+                        continue;
+                    }
+
+                    urls_oldWay.Add(OSD.FromString(kvp.Value.ToString()));
+
+                    urls[kvp.Key] = OSD.FromString(kvp.Value.ToString());
                 }
+                args["service_urls"] = urls_oldWay;
+
                 args["serviceurls"] = urls;
             }
 

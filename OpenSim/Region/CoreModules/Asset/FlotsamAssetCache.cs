@@ -256,11 +256,11 @@ namespace OpenSim.Region.CoreModules.Asset
         {
             if (m_Enabled)
             {
-                if(m_AssetService == null)
+                if (m_AssetService == null)
                     m_AssetService = scene.RequestModuleInterface<IAssetService>();
                 lock(timerLock)
                 {
-                    if(!m_timerRunning)
+                    if (!m_timerRunning)
                     {
                         if (m_FileCacheEnabled && (m_FileExpiration > TimeSpan.Zero) && (m_FileExpirationCleanupTimer > TimeSpan.Zero))
                         {
@@ -299,7 +299,6 @@ namespace OpenSim.Region.CoreModules.Asset
         private void UpdateFileCache(string key, AssetBase asset)
         {
             string filename = GetFileName(key);
-
             try
             {
                 // If the file is already cached, don't cache it, just touch it so access time is updated
@@ -315,23 +314,23 @@ namespace OpenSim.Region.CoreModules.Asset
                     lock (m_CurrentlyWriting)
                     {
 #if WAIT_ON_INPROGRESS_REQUESTS
-                        if (m_CurrentlyWriting.ContainsKey(filename))
+                        if (m_CurrentlyWriting.ContainsKey(key))
                         {
                             return;
                         }
                         else
                         {
-                            m_CurrentlyWriting.Add(filename, new ManualResetEvent(false));
+                            m_CurrentlyWriting.Add(key, new ManualResetEvent(false));
                         }
 
 #else
-                        if (m_CurrentlyWriting.Contains(filename))
+                        if (m_CurrentlyWriting.Contains(key))
                         {
                             return;
                         }
                         else
                         {
-                            m_CurrentlyWriting.Add(filename);
+                            m_CurrentlyWriting.Add(key);
                         }
 #endif
 
@@ -440,7 +439,6 @@ namespace OpenSim.Region.CoreModules.Asset
         /// <returns>An asset retrieved from the file cache.  null if there was a problem retrieving an asset.</returns>
         private AssetBase GetFromFileCache(string id)
         {
-            string filename = GetFileName(id);
 
 #if WAIT_ON_INPROGRESS_REQUESTS
             // Check if we're already downloading this asset.  If so, try to wait for it to
@@ -450,7 +448,7 @@ namespace OpenSim.Region.CoreModules.Asset
                 m_RequestsForInprogress++;
 
                 ManualResetEvent waitEvent;
-                if (m_CurrentlyWriting.TryGetValue(filename, out waitEvent))
+                if (m_CurrentlyWriting.TryGetValue(id, out waitEvent))
                 {
                     waitEvent.WaitOne(m_WaitOnInprogressTimeout);
                     return Get(id);
@@ -459,15 +457,16 @@ namespace OpenSim.Region.CoreModules.Asset
 #else
             // Track how often we have the problem that an asset is requested while
             // it is still being downloaded by a previous request.
-            if (m_CurrentlyWriting.Contains(filename))
+            if (m_CurrentlyWriting.Contains(id))
             {
                 m_RequestsForInprogress++;
                 return null;
             }
 #endif
 
-            AssetBase asset = null;
+            string filename = GetFileName(id);
 
+            AssetBase asset = null;
             if (File.Exists(filename))
             {
                 try
@@ -506,18 +505,14 @@ namespace OpenSim.Region.CoreModules.Asset
 
         private bool CheckFromFileCache(string id)
         {
-            bool found = false;
-
             string filename = GetFileName(id);
-
             if (File.Exists(filename))
             {
                 try
                 {
                     using (FileStream stream = File.Open(filename, FileMode.Open, FileAccess.Read, FileShare.Read))
                     {
-                        if (stream != null)
-                            found = true;
+                        return (stream != null);
                     }
                 }
                 catch (Exception e)
@@ -527,8 +522,7 @@ namespace OpenSim.Region.CoreModules.Asset
                         filename, id, e.Message, e.StackTrace);
                 }
             }
-
-            return found;
+            return false;
         }
 
         public AssetBase Get(string id)
@@ -543,8 +537,7 @@ namespace OpenSim.Region.CoreModules.Asset
             asset = GetFromWeakReference(id);
             if (asset != null && m_updateFileTimeOnCacheHit)
             {
-                string filename = GetFileName(id);
-                UpdateFileLastAccessTime(filename);
+                UpdateFileLastAccessTime(GetFileName(id));
             }
 
             if (m_MemoryCacheEnabled && asset == null)
@@ -555,8 +548,7 @@ namespace OpenSim.Region.CoreModules.Asset
                     UpdateWeakReference(id,asset);
                     if (m_updateFileTimeOnCacheHit)
                     {
-                        string filename = GetFileName(id);
-                        UpdateFileLastAccessTime(filename);
+                        UpdateFileLastAccessTime(GetFileName(id));
                     }
                 }
             }
@@ -576,12 +568,6 @@ namespace OpenSim.Region.CoreModules.Asset
                 m_log.InfoFormat("[FLOTSAM ASSET CACHE]: Cache Get :: {0} :: {1}", id, asset == null ? "Miss" : "Hit");
 
                 GenerateCacheHitReport().ForEach(l => m_log.InfoFormat("[FLOTSAM ASSET CACHE]: {0}", l));
-            }
-
-            if(asset == null)
-            {
-
-
             }
 
             return asset;
@@ -647,6 +633,7 @@ namespace OpenSim.Region.CoreModules.Asset
 
             if (m_MemoryCacheEnabled)
                 m_MemoryCache = new ExpiringCache<string, AssetBase>();
+
             if (m_negativeCacheEnabled)
                 m_negativeCache = new ExpiringCache<string, object>();
 
@@ -682,6 +669,7 @@ namespace OpenSim.Region.CoreModules.Asset
             {
                 if(m_timerRunning)
                     m_CacheCleanTimer.Start();
+
                 m_cleanupRunning = false;
             }
         }
@@ -746,7 +734,7 @@ namespace OpenSim.Region.CoreModules.Asset
             // Would it be faster to just hash the darn thing?
             foreach (char c in m_InvalidChars)
             {
-                id = id.Replace(c, '_');
+               id = id.Replace(c, '_');
             }
 
             string path = m_CacheDirectory;
@@ -838,13 +826,13 @@ namespace OpenSim.Region.CoreModules.Asset
                 {
 #if WAIT_ON_INPROGRESS_REQUESTS
                     ManualResetEvent waitEvent;
-                    if (m_CurrentlyWriting.TryGetValue(filename, out waitEvent))
+                    if (m_CurrentlyWriting.TryGetValue(asset.ID, out waitEvent))
                     {
-                        m_CurrentlyWriting.Remove(filename);
+                        m_CurrentlyWriting.Remove(asset.ID);
                         waitEvent.Set();
                     }
 #else
-                    m_CurrentlyWriting.Remove(filename);
+                    m_CurrentlyWriting.Remove(asset.ID);
 #endif
                 }
             }
@@ -1173,7 +1161,6 @@ namespace OpenSim.Region.CoreModules.Asset
                             }
                             con.OutputFormat("Completed check with {0} assets.", assetReferenceTotal);
                         }, null, "TouchAllSceneAssets");
-
                         break;
 
                     case "expire":
@@ -1227,14 +1214,18 @@ namespace OpenSim.Region.CoreModules.Asset
 
         public AssetMetadata GetMetadata(string id)
         {
-            AssetBase asset = Get(id);
-            return asset.Metadata;
+            //AssetBase asset = Get(id);
+            //return asset.Metadata;
+
+            return (Get(id)).Metadata;
         }
 
         public byte[] GetData(string id)
         {
-            AssetBase asset = Get(id);
-            return asset.Data;
+            //AssetBase asset = Get(id);
+            //return asset.Data;
+
+            return (Get(id)).Data;
         }
 
         public bool Get(string id, object sender, AssetRetrieved handler)
@@ -1264,7 +1255,6 @@ namespace OpenSim.Region.CoreModules.Asset
             }
 
             Cache(asset);
-
             return asset.ID;
         }
 

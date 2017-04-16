@@ -80,12 +80,7 @@ namespace OpenSim.Region.CoreModules.Asset
         private static ulong m_MemoryHits;
         private static ulong m_weakRefHits;
 
-#if WAIT_ON_INPROGRESS_REQUESTS
-        private Dictionary<string, ManualResetEvent> m_CurrentlyWriting = new Dictionary<string, ManualResetEvent>();
-        private int m_WaitOnInprogressTimeout = 3000;
-#else
         private HashSet<string> m_CurrentlyWriting = new HashSet<string>();
-#endif
 
         private bool m_FileCacheEnabled = true;
 
@@ -170,10 +165,6 @@ namespace OpenSim.Region.CoreModules.Asset
                         m_negativeCacheSliding = assetConfig.GetBoolean("NegativeCacheSliding", m_negativeCacheSliding);
                         m_updateFileTimeOnCacheHit = assetConfig.GetBoolean("UpdateFileTimeOnCacheHit", m_updateFileTimeOnCacheHit);
 
-    #if WAIT_ON_INPROGRESS_REQUESTS
-                        m_WaitOnInprogressTimeout = assetConfig.GetInt("WaitOnInprogressTimeout", 3000);
-    #endif
-
                         m_LogLevel = assetConfig.GetInt("LogLevel", m_LogLevel);
                         m_HitRateDisplay = (ulong)assetConfig.GetLong("HitRateDisplay", (long)m_HitRateDisplay);
 
@@ -189,7 +180,6 @@ namespace OpenSim.Region.CoreModules.Asset
                     }
 
                     m_log.InfoFormat("[FLOTSAM ASSET CACHE]: Cache Directory {0}", m_CacheDirectory);
-
 
                     if (m_CacheDirectoryTiers < 1)
                     {
@@ -298,47 +288,32 @@ namespace OpenSim.Region.CoreModules.Asset
 
         private void UpdateFileCache(string key, AssetBase asset)
         {
-            string filename = GetFileName(key);
             try
             {
-                // If the file is already cached, don't cache it, just touch it so access time is updated
-                if (File.Exists(filename))
+                string filename;
+                lock (m_CurrentlyWriting)
                 {
-                    UpdateFileLastAccessTime(filename);
-                }
-                else
-                {
+                    if (m_CurrentlyWriting.Contains(key))
+                    {
+                        return;
+                    }
+
+                    filename = GetFileName(key);
+                    if (File.Exists(filename))
+                    {
+                        // If the file is already cached, don't cache it, just touch it so access time is updated
+                        Util.FireAndForget(delegate { UpdateFileLastAccessTime(filename); });
+                        return;
+                    }
+
                     // Once we start writing, make sure we flag that we're writing
                     // that object to the cache so that we don't try to write the
                     // same file multiple times.
-                    lock (m_CurrentlyWriting)
-                    {
-#if WAIT_ON_INPROGRESS_REQUESTS
-                        if (m_CurrentlyWriting.ContainsKey(key))
-                        {
-                            return;
-                        }
-                        else
-                        {
-                            m_CurrentlyWriting.Add(key, new ManualResetEvent(false));
-                        }
-
-#else
-                        if (m_CurrentlyWriting.Contains(key))
-                        {
-                            return;
-                        }
-                        else
-                        {
-                            m_CurrentlyWriting.Add(key);
-                        }
-#endif
-
-                    }
-
-                    Util.FireAndForget(
-                        delegate { WriteFileCache(filename, asset); }, null, "FlotsamAssetCache.UpdateFileCache");
+                    m_CurrentlyWriting.Add(key);
                 }
+                Util.FireAndForget(
+                    delegate { WriteFileCache(filename, asset); }, null, "FlotsamAssetCache.UpdateFileCache");
+
             }
             catch (Exception e)
             {
@@ -382,6 +357,7 @@ namespace OpenSim.Region.CoreModules.Asset
         /// <returns><c>true</c>, if the update was successful, false otherwise.</returns>
         private bool UpdateFileLastAccessTime(string filename)
         {
+            // this method can be run in a FireAndForget..
             try
             {
                 File.SetLastAccessTime(filename, DateTime.Now);
@@ -439,22 +415,6 @@ namespace OpenSim.Region.CoreModules.Asset
         /// <returns>An asset retrieved from the file cache.  null if there was a problem retrieving an asset.</returns>
         private AssetBase GetFromFileCache(string id)
         {
-
-#if WAIT_ON_INPROGRESS_REQUESTS
-            // Check if we're already downloading this asset.  If so, try to wait for it to
-            // download.
-            if (m_WaitOnInprogressTimeout > 0)
-            {
-                m_RequestsForInprogress++;
-
-                ManualResetEvent waitEvent;
-                if (m_CurrentlyWriting.TryGetValue(id, out waitEvent))
-                {
-                    waitEvent.WaitOne(m_WaitOnInprogressTimeout);
-                    return Get(id);
-                }
-            }
-#else
             // Track how often we have the problem that an asset is requested while
             // it is still being downloaded by a previous request.
             if (m_CurrentlyWriting.Contains(id))
@@ -462,10 +422,8 @@ namespace OpenSim.Region.CoreModules.Asset
                 m_RequestsForInprogress++;
                 return null;
             }
-#endif
 
             string filename = GetFileName(id);
-
             AssetBase asset = null;
             if (File.Exists(filename))
             {
@@ -505,6 +463,9 @@ namespace OpenSim.Region.CoreModules.Asset
 
         private bool CheckFromFileCache(string id)
         {
+            // Lets keep it simple, if the file exists thats enough.
+            return File.Exists(GetFileName(id));
+/*
             string filename = GetFileName(id);
             if (File.Exists(filename))
             {
@@ -523,6 +484,17 @@ namespace OpenSim.Region.CoreModules.Asset
                 }
             }
             return false;
+*/
+        }
+
+        private void WriteGetLog(string id, bool miss)
+        {
+            if (((m_LogLevel >= 1)) && (m_HitRateDisplay != 0) && (m_Requests % m_HitRateDisplay == 0))
+            {
+                m_log.InfoFormat("[FLOTSAM ASSET CACHE]: Cache Get :: {0} :: {1}", id, miss ? "Miss" : "Hit");
+
+                GenerateCacheHitReport().ForEach(l => m_log.InfoFormat("[FLOTSAM ASSET CACHE]: {0}", l));
+            }
         }
 
         public AssetBase Get(string id)
@@ -535,41 +507,66 @@ namespace OpenSim.Region.CoreModules.Asset
 
             AssetBase asset = null;
             asset = GetFromWeakReference(id);
-            if (asset != null && m_updateFileTimeOnCacheHit)
+            if (asset != null)
             {
-                UpdateFileLastAccessTime(GetFileName(id));
+                // Yes! got the asset from the weak reference cache!
+
+                if (m_updateFileTimeOnCacheHit)
+                {
+                    Util.FireAndForget(
+                        delegate {
+                            UpdateFileLastAccessTime(GetFileName(id));
+                        });
+                }
+
+                if (m_MemoryCacheEnabled)
+                {
+                    UpdateMemoryCache(id, asset);
+                }
+
+                WriteGetLog(id, false);
+                return asset;
             }
 
-            if (m_MemoryCacheEnabled && asset == null)
+            if (m_MemoryCacheEnabled)
             {
                 asset = GetFromMemoryCache(id);
                 if(asset != null)
                 {
+                    // Yes! got the asset from the memory cache!
                     UpdateWeakReference(id,asset);
+
                     if (m_updateFileTimeOnCacheHit)
                     {
-                        UpdateFileLastAccessTime(GetFileName(id));
+                        Util.FireAndForget(
+                            delegate {
+                                UpdateFileLastAccessTime(GetFileName(id));
+                            });
+                    }
+
+                    UpdateMemoryCache(id, asset);
+
+                    WriteGetLog(id, false);
+                    return asset;
+                }
+            }
+
+            if (m_FileCacheEnabled)
+            {
+                asset = GetFromFileCache(id);
+                if (asset != null)
+                {
+                    // Yes! got the asset from the file cache!
+                    UpdateWeakReference(id, asset);
+
+                    if (m_MemoryCacheEnabled)
+                    {
+                        UpdateMemoryCache(id, asset);
                     }
                 }
             }
 
-            if (asset == null && m_FileCacheEnabled)
-            {
-                asset = GetFromFileCache(id);
-                if(asset != null)
-                    UpdateWeakReference(id,asset);
-            }
-
-            if (m_MemoryCacheEnabled && asset != null)
-                UpdateMemoryCache(id, asset);
-
-            if (((m_LogLevel >= 1)) && (m_HitRateDisplay != 0) && (m_Requests % m_HitRateDisplay == 0))
-            {
-                m_log.InfoFormat("[FLOTSAM ASSET CACHE]: Cache Get :: {0} :: {1}", id, asset == null ? "Miss" : "Hit");
-
-                GenerateCacheHitReport().ForEach(l => m_log.InfoFormat("[FLOTSAM ASSET CACHE]: {0}", l));
-            }
-
+            WriteGetLog(id, (asset == null));
             return asset;
         }
 
@@ -578,9 +575,7 @@ namespace OpenSim.Region.CoreModules.Asset
             if (m_MemoryCacheEnabled && CheckFromMemoryCache(id))
                 return true;
 
-            if (m_FileCacheEnabled && CheckFromFileCache(id))
-                return true;
-            return false;
+            return (m_FileCacheEnabled && CheckFromFileCache(id));
         }
 
         public AssetBase GetCached(string id)
@@ -824,16 +819,7 @@ namespace OpenSim.Region.CoreModules.Asset
                 // cached
                 lock (m_CurrentlyWriting)
                 {
-#if WAIT_ON_INPROGRESS_REQUESTS
-                    ManualResetEvent waitEvent;
-                    if (m_CurrentlyWriting.TryGetValue(asset.ID, out waitEvent))
-                    {
-                        m_CurrentlyWriting.Remove(asset.ID);
-                        waitEvent.Set();
-                    }
-#else
                     m_CurrentlyWriting.Remove(asset.ID);
-#endif
                 }
             }
         }
@@ -862,7 +848,6 @@ namespace OpenSim.Region.CoreModules.Asset
         private void StampRegionStatusFile(UUID regionID)
         {
             string RegionCacheStatusFile = Path.Combine(m_CacheDirectory, "RegionStatus_" + regionID.ToString() + ".fac");
-
             try
             {
                 if (File.Exists(RegionCacheStatusFile))

@@ -290,30 +290,28 @@ namespace OpenSim.Region.CoreModules.Asset
         {
             try
             {
-                string filename;
+                string filename = GetFileName(key);
+                // No need to cache when the file already exists 
+                if (File.Exists(filename))
+                {
+                    UpdateFileLastAccessTime(filename);
+                    return;
+                }
+
                 lock (m_CurrentlyWriting)
                 {
-                    if (m_CurrentlyWriting.Contains(key))
-                    {
-                        return;
-                    }
-
-                    filename = GetFileName(key);
-                    if (File.Exists(filename))
-                    {
-                        // If the file is already cached, don't cache it, just touch it so access time is updated
-                        Util.FireAndForget(delegate { UpdateFileLastAccessTime(filename); });
-                        return;
-                    }
-
                     // Once we start writing, make sure we flag that we're writing
                     // that object to the cache so that we don't try to write the
                     // same file multiple times.
+                    if (m_CurrentlyWriting.Contains(key))
+                        return;
+
                     m_CurrentlyWriting.Add(key);
                 }
-                Util.FireAndForget(
-                    delegate { WriteFileCache(filename, asset); }, null, "FlotsamAssetCache.UpdateFileCache");
 
+                // Since we will run UpdateFileCache() from a thread we do not need to
+                // run WriteFileCache() in another thread.
+                WriteFileCache(filename, asset);
             }
             catch (Exception e)
             {
@@ -328,14 +326,19 @@ namespace OpenSim.Region.CoreModules.Asset
             // TODO: Spawn this off to some seperate thread to do the actual writing
             if (asset != null)
             {
-                //m_log.DebugFormat("[FLOTSAM ASSET CACHE]: Caching asset with id {0}", asset.ID);
-                UpdateWeakReference(asset.ID, asset);
+                Util.FireAndForget( 
+                   delegate
+                   {
+                       //m_log.DebugFormat("[FLOTSAM ASSET CACHE]: Caching asset with id {0}", asset.ID);
+                       UpdateWeakReference(asset.ID, asset);
 
-                if (m_MemoryCacheEnabled)
-                    UpdateMemoryCache(asset.ID, asset);
+                       if (m_MemoryCacheEnabled)
+                           UpdateMemoryCache(asset.ID, asset);
 
-                if (m_FileCacheEnabled)
-                    UpdateFileCache(asset.ID, asset);
+                       if (m_FileCacheEnabled)
+                           UpdateFileCache(asset.ID, asset);
+
+                   }, null, "FlotsamAssetCache.Cache");
             }
         }
 
@@ -355,18 +358,16 @@ namespace OpenSim.Region.CoreModules.Asset
         /// </summary>
         /// <param name="filename">Filename.</param>
         /// <returns><c>true</c>, if the update was successful, false otherwise.</returns>
-        private bool UpdateFileLastAccessTime(string filename)
+        private void UpdateFileLastAccessTime(string filename)
         {
-            // this method can be run in a FireAndForget..
             try
             {
                 File.SetLastAccessTime(filename, DateTime.Now);
-                return true;
             }
             catch
             {
-                return false;
-            }
+                return;
+            };
         }
 
         private AssetBase GetFromWeakReference(string id)
@@ -379,8 +380,10 @@ namespace OpenSim.Region.CoreModules.Asset
                 if (weakAssetReferences.TryGetValue(id, out aref))
                 {
                     asset = aref.Target as AssetBase;
-                    if(asset == null)
+                    if (asset == null)
+                    {
                         weakAssetReferences.Remove(id);
+                    }
                     else
                         m_weakRefHits++;
                 }
@@ -510,21 +513,17 @@ namespace OpenSim.Region.CoreModules.Asset
             if (asset != null)
             {
                 // Yes! got the asset from the weak reference cache!
-
-                if (m_updateFileTimeOnCacheHit)
+                Util.FireAndForget(delegate
                 {
-                    Util.FireAndForget(
-                        delegate {
-                            UpdateFileLastAccessTime(GetFileName(id));
-                        });
-                }
+                    if (m_updateFileTimeOnCacheHit)
+                        UpdateFileLastAccessTime(GetFileName(id));
 
-                if (m_MemoryCacheEnabled)
-                {
-                    UpdateMemoryCache(id, asset);
-                }
+                    if (m_MemoryCacheEnabled)
+                        UpdateMemoryCache(id, asset);
 
-                WriteGetLog(id, false);
+                    WriteGetLog(id, false);
+                });
+
                 return asset;
             }
 
@@ -534,19 +533,18 @@ namespace OpenSim.Region.CoreModules.Asset
                 if(asset != null)
                 {
                     // Yes! got the asset from the memory cache!
-                    UpdateWeakReference(id,asset);
-
-                    if (m_updateFileTimeOnCacheHit)
+                    Util.FireAndForget(delegate
                     {
-                        Util.FireAndForget(
-                            delegate {
-                                UpdateFileLastAccessTime(GetFileName(id));
-                            });
-                    }
+                        UpdateWeakReference(id, asset);
 
-                    UpdateMemoryCache(id, asset);
+                        if (m_updateFileTimeOnCacheHit)
+                            UpdateFileLastAccessTime(GetFileName(id));
 
-                    WriteGetLog(id, false);
+                        UpdateMemoryCache(id, asset);
+
+                        WriteGetLog(id, false);
+                    });
+
                     return asset;
                 }
             }
@@ -557,17 +555,22 @@ namespace OpenSim.Region.CoreModules.Asset
                 if (asset != null)
                 {
                     // Yes! got the asset from the file cache!
-                    UpdateWeakReference(id, asset);
-
-                    if (m_MemoryCacheEnabled)
+                    Util.FireAndForget(delegate
                     {
-                        UpdateMemoryCache(id, asset);
-                    }
+                        UpdateWeakReference(id, asset);
+
+                        if (m_MemoryCacheEnabled)
+                            UpdateMemoryCache(id, asset);
+
+                        WriteGetLog(id, false);
+                    });
+
+                    return asset;
                 }
             }
 
-            WriteGetLog(id, (asset == null));
-            return asset;
+            WriteGetLog(id, true);
+            return null;
         }
 
         public bool Check(string id)
@@ -585,32 +588,35 @@ namespace OpenSim.Region.CoreModules.Asset
 
         public void Expire(string id)
         {
-            if (m_LogLevel >= 2)
-                m_log.DebugFormat("[FLOTSAM ASSET CACHE]: Expiring Asset {0}", id);
-
-            try
+            Util.FireAndForget(delegate
             {
-                if (m_FileCacheEnabled)
+                try
                 {
-                    string filename = GetFileName(id);
-                    if (File.Exists(filename))
+                    if (m_LogLevel >= 2)
+                        m_log.DebugFormat("[FLOTSAM ASSET CACHE]: Expiring Asset {0}", id);
+
+                    if (m_FileCacheEnabled)
                     {
-                        File.Delete(filename);
+                        string filename = GetFileName(id);
+                        if (File.Exists(filename))
+                        {
+                            File.Delete(filename);
+                        }
                     }
+
+                    if (m_MemoryCacheEnabled)
+                        m_MemoryCache.Remove(id);
+
+                    lock (weakAssetReferencesLock)
+                        weakAssetReferences.Remove(id);
                 }
-
-                if (m_MemoryCacheEnabled)
-                    m_MemoryCache.Remove(id);
-
-                lock(weakAssetReferencesLock)
-                    weakAssetReferences.Remove(id);
-            }
-            catch (Exception e)
-            {
-                m_log.WarnFormat(
-                    "[FLOTSAM ASSET CACHE]: Failed to expire cached file {0}.  Exception {1} {2}",
-                    id, e.Message, e.StackTrace);
-            }
+                catch (Exception e)
+                {
+                    m_log.WarnFormat(
+                        "[FLOTSAM ASSET CACHE]: Failed to expire cached file {0}.  Exception {1} {2}",
+                        id, e.Message, e.StackTrace);
+                }
+            });
         }
 
         public void Clear()

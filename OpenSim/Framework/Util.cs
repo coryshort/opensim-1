@@ -2335,7 +2335,7 @@ namespace OpenSim.Framework
 
         public static int FireAndForgetCount()
         {
-            const int MAX_SYSTEM_THREADS = 256; // 200; why 200, why not lets say... 256?
+            const int MAX_SYSTEM_THREADS = 512; // 200; why 200, why not lets say... 512?
 
             switch (FireAndForgetMethod)
             {
@@ -2896,52 +2896,62 @@ namespace OpenSim.Framework
         public static string FormatDuration(int ms)
         {
             TimeSpan span = new TimeSpan(ms * TimeSpan.TicksPerMillisecond);
+            StringBuilder sb = new StringBuilder();
 
-            string str = "";
             string suffix = null;
 
             int hours = (int)span.TotalHours;
             if (hours > 0)
             {
-                str += hours.ToString(str.Length == 0 ? "0" : "00");
-                suffix = "hours";
+                sb.Append(hours.ToString("00"));
+                sb.Append(":");
+                suffix = " hours";
             }
 
             if ((hours > 0) || (span.Minutes > 0))
             {
-                if (str.Length > 0)
-                    str += ":";
-                str += span.Minutes.ToString(str.Length == 0 ? "0" : "00");
-                if (suffix == null)
-                    suffix = "min";
+                if (hours > 0)
+                {
+                    sb.Append(span.Minutes.ToString("00"));
+                }
+                else
+                {
+                    sb.Append(span.Minutes.ToString("0"));
+                    suffix = " min";
+                }
+
+                sb.Append(":");
             }
 
             if ((hours > 0) || (span.Minutes > 0) || (span.Seconds > 0))
             {
-                if (str.Length > 0)
-                    str += ":";
-                str += span.Seconds.ToString(str.Length == 0 ? "0" : "00");
-                if (suffix == null)
-                    suffix = "sec";
+                if ((hours > 0) || (span.Minutes > 0))
+                {
+                    sb.Append(span.Seconds.ToString("00"));
+                }
+                else
+                {
+                    sb.Append(span.Seconds.ToString("0"));
+                    suffix = " sec";
+                }
             }
-
-            if (suffix == null)
-                suffix = "ms";
+            else
+                suffix = " ms";
 
             if (span.TotalMinutes < 1)
             {
                 int ms1 = span.Milliseconds;
-                if (str.Length > 0)
+                if (sb.Length > 0)
                 {
                     ms1 /= 100;
-                    str += ".";
+                    sb.Append(".");
                 }
-                str += ms1.ToString("0");
+                sb.Append(ms1.ToString("0"));
             }
 
-            str += " " + suffix;
-
-            return str;
+            sb.Append(suffix);
+            
+            return sb.ToString();
         }
 
         /// <summary>

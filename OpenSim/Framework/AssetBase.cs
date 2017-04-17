@@ -112,8 +112,7 @@ namespace OpenSim.Framework
         {
             get
             {
-                return
-                    IsTextualAsset && (
+                return IsTextualAsset && (
                     Type != (sbyte)AssetType.Notecard
                     && Type != (sbyte)AssetType.CallingCard
                     && Type != (sbyte)AssetType.LSLText
@@ -127,7 +126,6 @@ namespace OpenSim.Framework
             {
                 return !IsBinaryAsset;
             }
-
         }
 
         /// <summary>
@@ -137,7 +135,7 @@ namespace OpenSim.Framework
         {
             get
             {
-                return
+                return 
                     (Type == (sbyte)AssetType.Animation ||
                      Type == (sbyte)AssetType.Gesture ||
                      Type == (sbyte)AssetType.Simstate ||
@@ -265,10 +263,14 @@ namespace OpenSim.Framework
         private string m_creatorid;
         private AssetFlags m_flags;
 
+        private string m_cache_file = String.Empty;
+
         public UUID FullID
         {
             get { return m_fullid; }
-            set { m_fullid = value; m_id = m_fullid.ToString(); }
+            set { m_fullid = value;
+                  m_id = m_fullid.ToString();
+                }
         }
 
         public string ID
